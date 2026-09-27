@@ -55,6 +55,8 @@
                                        Definition="Outbound network throughput from the host, expressed in Mbps."/>
                     <local:GlossaryRow Term="Tailscale"
                                        Definition="Mesh VPN. Its 100.x address lets a client reach the host from outside the LAN; StreamTweak surfaces it per host so you can stream remotely."/>
+                    <local:GlossaryRow Term="PyroWave"
+                                       Definition="Intra-only GPU wavelet codec for wired LAN streaming: sub-millisecond encode and decode, hundreds of Mbps. Offered by a PyroWave build of the server (pyrowave = enabled in sunshine.conf) to a PyroWave build of Moonlight."/>
 
                     <!-- ── STREAMING · CLIENT ── -->
                     <TextBlock Text="// STREAMING · CLIENT"

@@ -18,7 +18,7 @@
             <StackPanel x:Name="PanelNet" Style="{StaticResource ST8_PanelRoot}">
                 <StackPanel Spacing="3">
                     <TextBlock Text="Network" Style="{StaticResource ST8_PanelTitle}"/>
-                    <TextBlock Text="Switch the host NIC link speed for streaming." Style="{StaticResource ST_PageSubtitle}"/>
+                    <TextBlock Text="Switch the host NIC link speed for streaming, and offer the PyroWave codec." Style="{StaticResource ST_PageSubtitle}"/>
                 </StackPanel>
 
                 <!-- ADAPTER -->
@@ -166,6 +166,41 @@
                                             IsEnabled="{x:Bind Net.CanRestore, Mode=OneWay}"/>
                                 </Grid>
                             </Border>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- PYROWAVE — a switch on the server's sunshine.conf; the codec itself is
+                     negotiated between a PyroWave build of the server and of Moonlight. -->
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <TextBlock Text="PYROWAVE" Style="{StaticResource ST_SectionLabel}" VerticalAlignment="Center"/>
+                        <ctrl:InfoHint Term="PyroWave" Tip="A GPU wavelet codec built for streaming over a fast wired LAN: encode and decode take well under a millisecond, at the cost of hundreds of Mbps. Every frame is a keyframe, so a lost packet costs one frame, not a smeared picture until the next one."/>
+                    </StackPanel>
+                    <Border Style="{StaticResource ST8_GroupCard}">
+                        <Border Style="{StaticResource ST8_Row}" BorderThickness="0">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,16,0">
+                                    <TextBlock Text="Offer the PyroWave codec" Style="{StaticResource ST_RowLabel}"/>
+                                    <TextBlock Text="{x:Bind Net.PyroWaveDetailText, Mode=OneWay}" Style="{StaticResource ST_RowDescription}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" Style="{StaticResource ST_Toggle}" VerticalAlignment="Center"
+                                              AutomationProperties.Name="Offer the PyroWave codec"
+                                              IsOn="{x:Bind Net.PyroWaveEnabled, Mode=TwoWay}"
+                                              IsEnabled="{x:Bind Net.PyroWaveAvailable, Mode=OneWay}"/>
+                            </Grid>
+                        </Border>
+                    </Border>
+
+                    <Border Style="{StaticResource ST_InfoBox}"
+                            Visibility="{x:Bind Net.PyroWaveLinkWarning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE7BA;" FontSize="13" Foreground="{StaticResource STWarning}" VerticalAlignment="Top" Margin="0,1,0,0"/>
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="The link is too slow for PyroWave" Style="{StaticResource ST_RowLabel}"/>
+                                <TextBlock Text="{x:Bind Net.PyroWaveLinkWarningText, Mode=OneWay}" Style="{StaticResource ST_RowDescription}" TextWrapping="Wrap"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </StackPanel>
