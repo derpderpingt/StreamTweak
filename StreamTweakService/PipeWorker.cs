@@ -126,7 +126,7 @@ public class PipeWorker : BackgroundService
                             await writer.WriteLineAsync("ERROR:missing fields");
                             return;
                         }
-                        if (!IsAllowedAppsJsonPath(cmd.Path))
+                        if (!IsAllowedServerConfigPath(cmd.Path))
                         {
                             await writer.WriteLineAsync("ERROR:path not allowed");
                             return;
@@ -134,7 +134,13 @@ public class PipeWorker : BackgroundService
                         try
                         {
                             Directory.CreateDirectory(Path.GetDirectoryName(cmd.Path)!);
-                            File.WriteAllText(cmd.Path, cmd.Content, System.Text.Encoding.UTF8);
+                            // sunshine.conf is written without a BOM: the server's key=value
+                            // parser would read it as part of the first key. apps.json keeps
+                            // the encoding it has always been written with.
+                            var encoding = cmd.Path.EndsWith("sunshine.conf", StringComparison.OrdinalIgnoreCase)
+                                ? new System.Text.UTF8Encoding(false)
+                                : System.Text.Encoding.UTF8;
+                            File.WriteAllText(cmd.Path, cmd.Content, encoding);
                             _logger.LogInformation("WriteFile OK: {Path}", cmd.Path);
                             await writer.WriteLineAsync("OK");
                         }
@@ -227,7 +233,7 @@ public class PipeWorker : BackgroundService
     }
 
     /// <summary>
-    /// Security check: only allow writing to apps.json files inside known streaming server directories.
+    /// Security check: only allow writing apps.json / sunshine.conf inside known streaming server directories.
     ///
     /// Only the machine-wide bases are listed. The per-user AppData folders are intentionally
     /// NOT here: this service runs as LocalSystem, so SpecialFolder.ApplicationData /
@@ -245,12 +251,17 @@ public class PipeWorker : BackgroundService
         Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
     };
 
-    private static bool IsAllowedAppsJsonPath(string path)
-    {
-        if (!path.EndsWith("apps.json", StringComparison.OrdinalIgnoreCase))
-            return false;
+    /// <summary>The only server files WRITEFILE may touch: the app list, and the server's own
+    /// config (for the PyroWave switch). Matched on the whole file name, not a suffix, so
+    /// "evilapps.json" does not pass.</summary>
+    private static readonly string[] _allowedServerFiles = { "apps.json", "sunshine.conf" };
 
+    private static bool IsAllowedServerConfigPath(string path)
+    {
         string normalized = Path.GetFullPath(path);
+
+        if (!_allowedServerFiles.Contains(Path.GetFileName(normalized), StringComparer.OrdinalIgnoreCase))
+            return false;
 
         bool hasAppName = _allowedAppNames.Any(app =>
             normalized.Contains(Path.DirectorySeparatorChar + app + Path.DirectorySeparatorChar,

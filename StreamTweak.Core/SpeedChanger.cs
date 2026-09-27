@@ -45,7 +45,14 @@ namespace StreamTweak
         /// that may be inside a protected directory (e.g. C:\Program Files\Sunshine\config\).
         /// Returns true on success; false if the service is unavailable or the write fails.
         /// </summary>
-        public static bool WriteAppsJson(string path, string jsonContent)
+        public static bool WriteAppsJson(string path, string jsonContent) => WriteServerFile(path, jsonContent);
+
+        /// <summary>
+        /// Asks the StreamTweakService (LocalSystem) to write one of the streaming server's own
+        /// config files — apps.json or sunshine.conf, nothing else (the service checks). Returns
+        /// true on success; false if the service is unavailable or refuses the path.
+        /// </summary>
+        public static bool WriteServerFile(string path, string content)
         {
             try
             {
@@ -59,7 +66,7 @@ namespace StreamTweak
                 {
                     Command = "WriteFile",
                     Path    = path,
-                    Content = jsonContent
+                    Content = content
                 });
 
                 writer.WriteLine(json);

@@ -32,7 +32,14 @@ namespace StreamTweak
 
         private static readonly string[] _knownAppNames = { "Sunshine", "Apollo", "Vibeshine", "Vibepollo" };
 
-        public static string? FindAppsJsonPath()
+        public static string? FindAppsJsonPath() => FindServerFile("apps.json");
+
+        /// <summary>
+        /// Finds a file in the streaming server's config folder (apps.json, sunshine.conf),
+        /// checking each known server in order. Both files live side by side, so the search is
+        /// the same one apps.json has always used.
+        /// </summary>
+        public static string? FindServerFile(string fileName)
         {
             string appData    = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             string localApp   = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -44,14 +51,14 @@ namespace StreamTweak
             {
                 var candidates = new[]
                 {
-                    Path.Combine(appData,     app, "config", "apps.json"),
-                    Path.Combine(appData,     app, "apps.json"),
-                    Path.Combine(localApp,    app, "config", "apps.json"),
-                    Path.Combine(localApp,    app, "apps.json"),
-                    Path.Combine(progData,    app, "config", "apps.json"),
-                    Path.Combine(progData,    app, "apps.json"),
-                    Path.Combine(progFiles,   app, "config", "apps.json"),
-                    Path.Combine(progFiles86, app, "config", "apps.json"),
+                    Path.Combine(appData,     app, "config", fileName),
+                    Path.Combine(appData,     app, fileName),
+                    Path.Combine(localApp,    app, "config", fileName),
+                    Path.Combine(localApp,    app, fileName),
+                    Path.Combine(progData,    app, "config", fileName),
+                    Path.Combine(progData,    app, fileName),
+                    Path.Combine(progFiles,   app, "config", fileName),
+                    Path.Combine(progFiles86, app, "config", fileName),
                 };
 
                 foreach (var candidate in candidates)
@@ -71,7 +78,7 @@ namespace StreamTweak
 
                     if (!string.IsNullOrEmpty(installDir))
                     {
-                        string candidate = Path.Combine(installDir, "config", "apps.json");
+                        string candidate = Path.Combine(installDir, "config", fileName);
                         if (File.Exists(candidate)) return candidate;
                     }
                 }

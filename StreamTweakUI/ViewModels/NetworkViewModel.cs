@@ -141,6 +141,48 @@ namespace StreamTweak.ViewModels
             private set => SetProperty(ref _hasAdapters, value);
         }
 
+        // ── PyroWave ──────────────────────────────────────────────────────────
+        // A switch on the server's config, not a StreamTweak feature: the codec is negotiated
+        // between a PyroWave-capable server build and client. See PyroWaveConfig.
+
+        private bool _pyroWaveAvailable;
+        /// <summary>True when a sunshine.conf was found to read and write.</summary>
+        public bool PyroWaveAvailable
+        {
+            get => _pyroWaveAvailable;
+            private set => SetProperty(ref _pyroWaveAvailable, value);
+        }
+
+        private bool _pyroWaveEnabled;
+        public bool PyroWaveEnabled
+        {
+            get => _pyroWaveEnabled;
+            set
+            {
+                if (!SetProperty(ref _pyroWaveEnabled, value)) return;
+                OnPyroWaveWarningChanged();
+                _ = WritePyroWaveAsync(value);
+            }
+        }
+
+        private string _pyroWaveDetailText = "Looking for the server's sunshine.conf…";
+        public string PyroWaveDetailText
+        {
+            get => _pyroWaveDetailText;
+            private set => SetProperty(ref _pyroWaveDetailText, value);
+        }
+
+        private long _currentMbps;
+
+        /// <summary>PyroWave is on and the wired link is slower than it needs.</summary>
+        public bool PyroWaveLinkWarning =>
+            _pyroWaveEnabled && _currentMbps > 0 && _currentMbps < PyroWaveConfig.MinRecommendedMbps;
+
+        public string PyroWaveLinkWarningText =>
+            $"This adapter is at {NetworkManager.FormatMbps(_currentMbps)}. PyroWave sends every frame as a keyframe "
+          + $"and needs hundreds of Mbps, so plan on {NetworkManager.FormatMbps(PyroWaveConfig.MinRecommendedMbps)} "
+          + "or faster on both ends — or keep HEVC / AV1 for this link.";
+
         // ── Tailscale ─────────────────────────────────────────────────────────
 
         private string _tailscaleIp = string.Empty;
@@ -204,6 +246,7 @@ namespace StreamTweak.ViewModels
 
         public async Task InitializeAsync()
         {
+            _ = LoadPyroWaveAsync();
             IsLoading = true;
             try
             {
@@ -352,6 +395,58 @@ namespace StreamTweak.ViewModels
 
         // ── Private ───────────────────────────────────────────────────────────
 
+        private async Task LoadPyroWaveAsync()
+        {
+            var (state, path) = await Task.Run(() =>
+            {
+                var st = PyroWaveConfig.Read(out string? p);
+                return (st, p);
+            }).ConfigureAwait(false);
+
+            _dispatcher.TryEnqueue(() =>
+            {
+                PyroWaveAvailable = state != PyroWaveState.NoConfig;
+                SetPyroWaveSilently(state == PyroWaveState.Enabled);
+                PyroWaveDetailText = state == PyroWaveState.NoConfig
+                    ? "No sunshine.conf found for Sunshine, Apollo, Vibeshine or Vibepollo."
+                    : $"Writes \"pyrowave = enabled\" to {path}. Needs a PyroWave build of the server and of Moonlight; applies after the server restarts.";
+            });
+        }
+
+        private async Task WritePyroWaveAsync(bool enabled)
+        {
+            string? error = await Task.Run(() => PyroWaveConfig.Write(enabled)).ConfigureAwait(false);
+            _dispatcher.TryEnqueue(() =>
+            {
+                if (error == null)
+                {
+                    PyroWaveDetailText = enabled
+                        ? "Turned on. Restart the streaming server, then pick PyroWave in a PyroWave-capable Moonlight."
+                        : "Turned off. Restart the streaming server to go back to HEVC / AV1 / H.264.";
+                }
+                else
+                {
+                    // Put the switch back where the file really is.
+                    SetPyroWaveSilently(!enabled);
+                    PyroWaveDetailText = $"Couldn't write sunshine.conf: {error}";
+                }
+            });
+        }
+
+        /// <summary>Moves the switch without writing the file.</summary>
+        private void SetPyroWaveSilently(bool value)
+        {
+            _pyroWaveEnabled = value;
+            OnPropertyChanged(nameof(PyroWaveEnabled));
+            OnPyroWaveWarningChanged();
+        }
+
+        private void OnPyroWaveWarningChanged()
+        {
+            OnPropertyChanged(nameof(PyroWaveLinkWarning));
+            OnPropertyChanged(nameof(PyroWaveLinkWarningText));
+        }
+
         private void OnAdapterSelected(string adapterName)
         {
             AppStateService.Instance.LinkSpeed?.SetAdapter(adapterName);
@@ -382,6 +477,11 @@ namespace StreamTweak.ViewModels
             if (ni == null) { CurrentSpeedText = "Unknown"; return; }
 
             long mbps = ni.Speed / 1_000_000;
+            if (_currentMbps != mbps)
+            {
+                _currentMbps = mbps;
+                OnPyroWaveWarningChanged();
+            }
             // Invariant so the badge reads "2.5 Gbps" (dot), matching the driver speed
             // keys in the ComboBoxes — not the culture-local "2,5 Gbps".
             CurrentSpeedText = mbps <= 0    ? "Negotiating…"
